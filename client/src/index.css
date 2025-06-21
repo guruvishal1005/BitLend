@@ -1,0 +1,280 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 20 14.3% 4.1%;
+  --muted: 60 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 14.3% 4.1%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 14.3% 4.1%;
+  --border: 20 5.9% 90%;
+  --input: 20 5.9% 90%;
+  --primary: 28 100% 54%;  /* Bitcoin orange */
+  --primary-foreground: 60 9.1% 97.8%;
+  --secondary: 60 4.8% 95.9%;
+  --secondary-foreground: 24 9.8% 10%;
+  --accent: 199 95% 43%;  /* Blue accent */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --ring: 28 100% 54%;  /* Bitcoin orange */
+  --radius: 0.5rem;
+  
+  /* Chart colors */
+  --chart-1: 28 100% 54%;  /* Bitcoin orange */
+  --chart-2: 199 95% 43%;  /* Blue accent */
+  --chart-3: 142 77% 45%;  /* Success */
+  --chart-4: 42 100% 54%;  /* Warning */
+  --chart-5: 0 84% 60%;    /* Destructive */
+
+  /* Status colors */
+  --success: 142 77% 45%;  /* Green */
+  --warning: 42 100% 54%;  /* Yellow */
+  --danger: 0 84% 60%;     /* Red */
+
+  /* Sidebar colors */
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 20 14.3% 4.1%;
+  --sidebar-primary: 28 100% 54%;
+  --sidebar-primary-foreground: 60 9.1% 97.8%;
+  --sidebar-accent: 199 95% 43%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 20 5.9% 90%;
+  --sidebar-ring: 28 100% 54%;
+}
+
+.dark {
+  --background: 20 14.3% 4.1%;
+  --foreground: 60 9.1% 97.8%;
+  --muted: 12 6.5% 15.1%;
+  --muted-foreground: 24 5.4% 63.9%;
+  --popover: 20 14.3% 4.1%;
+  --popover-foreground: 60 9.1% 97.8%;
+  --card: 20 14.3% 4.1%;
+  --card-foreground: 60 9.1% 97.8%;
+  --border: 12 6.5% 15.1%;
+  --input: 12 6.5% 15.1%;
+  --primary: 28 100% 50%;  /* Slightly darker Bitcoin orange */
+  --primary-foreground: 60 9.1% 97.8%;
+  --secondary: 12 6.5% 15.1%;
+  --secondary-foreground: 60 9.1% 97.8%;
+  --accent: 199 95% 40%;   /* Darker blue accent */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72.2% 50.6%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --ring: 28 100% 50%;
+  --radius: 0.5rem;
+  
+  /* Chart colors */
+  --chart-1: 28 100% 50%;  /* Bitcoin orange */
+  --chart-2: 199 95% 40%;  /* Blue accent */
+  --chart-3: 142 77% 40%;  /* Success */
+  --chart-4: 42 100% 50%;  /* Warning */
+  --chart-5: 0 72% 50%;    /* Destructive */
+
+  /* Status colors */
+  --success: 142 77% 40%;  /* Green */
+  --warning: 42 100% 50%;  /* Yellow */
+  --danger: 0 72% 50%;     /* Red */
+
+  /* Sidebar colors */
+  --sidebar-background: 20 14.3% 4.1%;
+  --sidebar-foreground: 60 9.1% 97.8%;
+  --sidebar-primary: 28 100% 50%;
+  --sidebar-primary-foreground: 60 9.1% 97.8%;
+  --sidebar-accent: 199 95% 40%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 12 6.5% 15.1%;
+  --sidebar-ring: 28 100% 50%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    background-image: 
+      radial-gradient(circle at 25% 25%, hsl(var(--primary) / 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, hsl(var(--accent) / 0.05) 0%, transparent 50%);
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Custom scrollbar styles */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-muted/50 rounded-full;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50;
+}
+
+/* Enhanced animations */
+@keyframes pulse {
+  0%, 100% { 
+    transform: scale(1); 
+    opacity: 1;
+  }
+  50% { 
+    transform: scale(1.05); 
+    opacity: 0.8;
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px hsl(var(--primary) / 0.3); }
+  50% { box-shadow: 0 0 30px hsl(var(--primary) / 0.5); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.pulse-animation {
+  animation: pulse 2s infinite;
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+.glow-animation {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.shimmer-animation {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--primary) / 0.1),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Glass morphism effect */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-morphism {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced gradient backgrounds */
+.bitcoin-gradient {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)/0.8) 100%);
+}
+
+.accent-gradient {
+  background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--accent)/0.8) 100%);
+}
+
+.success-gradient {
+  background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(var(--success)/0.8) 100%);
+}
+
+/* Interactive elements */
+.interactive-hover {
+  @apply transition-all duration-300 hover:scale-105 hover:shadow-lg;
+}
+
+.card-hover {
+  @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/30;
+}
+
+/* Status badge colors with enhanced styling */
+@layer components {
+  .status-active {
+    @apply bg-success/10 text-success border border-success/20 shadow-sm;
+  }
+
+  .status-pending {
+    @apply bg-warning/10 text-warning border border-warning/20 shadow-sm;
+  }
+
+  .status-completed {
+    @apply bg-accent/10 text-accent border border-accent/20 shadow-sm;
+  }
+
+  .status-failed {
+    @apply bg-destructive/10 text-destructive border border-destructive/20 shadow-sm;
+  }
+  
+  .loan-request-badge {
+    @apply bg-primary/10 text-primary border border-primary/20 shadow-sm;
+  }
+  
+  .loan-offer-badge {
+    @apply bg-accent/10 text-accent border border-accent/20 shadow-sm;
+  }
+
+  /* Enhanced button styles */
+  .btn-gradient-primary {
+    @apply bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transition-all duration-200;
+  }
+
+  .btn-gradient-accent {
+    @apply bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent/70 shadow-md hover:shadow-lg transition-all duration-200;
+  }
+}
+
+/* Loading states */
+.loading-skeleton {
+  @apply animate-pulse bg-gradient-to-r from-muted via-muted/50 to-muted;
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Focus states for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background;
+}
+
+/* Responsive text scaling */
+@media (max-width: 640px) {
+  .responsive-text-lg {
+    @apply text-base;
+  }
+  
+  .responsive-text-xl {
+    @apply text-lg;
+  }
+  
+  .responsive-text-2xl {
+    @apply text-xl;
+  }
+}
+
+/* Enhanced transitions */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-bounce {
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
