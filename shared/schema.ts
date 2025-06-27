@@ -9,6 +9,8 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   walletAddress: text("wallet_address"),
   btcBalance: doublePrecision("btc_balance").default(0),
+  ethBalance: doublePrecision("eth_balance").default(0),
+  solBalance: doublePrecision("sol_balance").default(0),
   avatarInitials: text("avatar_initials"),
   rating: doublePrecision("rating").default(0),
 });
@@ -18,6 +20,7 @@ export const loans = pgTable("loans", {
   lenderId: integer("lender_id").references(() => users.id),
   borrowerId: integer("borrower_id").references(() => users.id),
   amount: doublePrecision("amount").notNull(),
+  currency: text("currency").notNull().default("BTC"), // BTC, ETH, SOL
   interest: doublePrecision("interest").notNull(),
   durationMonths: integer("duration_months").notNull(),
   status: text("status").notNull().default("pending"),
@@ -32,6 +35,7 @@ export const transactions = pgTable("transactions", {
   userId: integer("user_id").references(() => users.id).notNull(),
   loanId: integer("loan_id").references(() => loans.id),
   amount: doublePrecision("amount").notNull(),
+  currency: text("currency").notNull().default("BTC"), // BTC, ETH, SOL
   type: text("type").notNull(), // 'repayment', 'disbursement', 'deposit', 'withdrawal'
   description: text("description").notNull(),
   txHash: text("tx_hash"),
@@ -55,6 +59,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   walletAddress: true,
   btcBalance: true,
+  ethBalance: true,
+  solBalance: true,
   avatarInitials: true,
   rating: true,
 });
@@ -63,6 +69,7 @@ export const insertLoanSchema = createInsertSchema(loans).pick({
   lenderId: true,
   borrowerId: true,
   amount: true,
+  currency: true,
   interest: true,
   durationMonths: true,
   status: true,
@@ -74,6 +81,7 @@ export const insertTransactionSchema = createInsertSchema(transactions).pick({
   userId: true,
   loanId: true,
   amount: true,
+  currency: true,
   type: true,
   description: true,
   txHash: true,
@@ -101,9 +109,13 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertStats = z.infer<typeof insertStatsSchema>;
 export type Stats = typeof stats.$inferSelect;
 
+// Currency types
+export type Currency = 'BTC' | 'ETH' | 'SOL';
+
 // Loan marketplace schema
 export const loanOfferSchema = z.object({
   amount: z.number().min(0.01),
+  currency: z.enum(['BTC', 'ETH', 'SOL']).default('BTC'),
   interest: z.number().min(0).max(100),
   durationMonths: z.number().int().min(1),
   hasCollateral: z.boolean().default(false),
@@ -111,6 +123,7 @@ export const loanOfferSchema = z.object({
 
 export const loanRequestSchema = z.object({
   amount: z.number().min(0.01),
+  currency: z.enum(['BTC', 'ETH', 'SOL']).default('BTC'),
   interest: z.number().min(0).max(100),
   durationMonths: z.number().int().min(1),
   hasCollateral: z.boolean().default(false),
@@ -125,4 +138,5 @@ export const loginSchema = z.object({
 // Connect wallet schema
 export const connectWalletSchema = z.object({
   walletAddress: z.string(),
+  walletType: z.enum(['metamask', 'phantom', 'walletconnect']).default('metamask'),
 });

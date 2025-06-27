@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 
 interface WalletContextType {
   wallet: Web3WalletProvider;
-  connect: () => Promise<Web3WalletProvider>;
+  connect: (walletType?: 'metamask' | 'phantom') => Promise<Web3WalletProvider>;
   disconnect: () => Promise<void>;
   isConnecting: boolean;
 }
@@ -16,20 +16,26 @@ const WalletContext = createContext<WalletContextType>({
     signer: null,
     address: null,
     chainId: null,
-    balance: null,
+    btcBalance: null,
+    ethBalance: null,
+    solBalance: null,
     isConnected: false,
     isConnecting: false,
     error: null,
+    walletType: null,
   },
   connect: async () => ({
     provider: null,
     signer: null,
     address: null,
     chainId: null,
-    balance: null,
+    btcBalance: null,
+    ethBalance: null,
+    solBalance: null,
     isConnected: false,
     isConnecting: false,
     error: null,
+    walletType: null,
   }),
   disconnect: async () => {},
   isConnecting: false,
@@ -43,10 +49,13 @@ export function WalletContextProvider({ children }: { children: React.ReactNode 
     signer: null,
     address: null,
     chainId: null,
-    balance: null,
+    btcBalance: null,
+    ethBalance: null,
+    solBalance: null,
     isConnected: false,
     isConnecting: false,
     error: null,
+    walletType: null,
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
@@ -58,7 +67,9 @@ export function WalletContextProvider({ children }: { children: React.ReactNode 
       setWallet((prev: Web3WalletProvider) => ({
         ...prev,
         address: null,
-        balance: null,
+        btcBalance: null,
+        ethBalance: null,
+        solBalance: null,
         isConnected: false,
       }));
       toast({
@@ -103,10 +114,10 @@ export function WalletContextProvider({ children }: { children: React.ReactNode 
     };
   }, [handleAccountsChanged, handleChainChanged]);
 
-  const connect = async () => {
+  const connect = async (walletType: 'metamask' | 'phantom' = 'metamask') => {
     try {
       setIsConnecting(true);
-      const connectedWallet = await connectWallet();
+      const connectedWallet = await connectWallet(walletType);
       
       setWallet(connectedWallet);
       
@@ -122,8 +133,9 @@ export function WalletContextProvider({ children }: { children: React.ReactNode 
           variant: 'destructive',
         });
       } else if (connectedWallet.isConnected) {
+        const walletName = walletType === 'phantom' ? 'Phantom' : 'MetaMask';
         toast({
-          title: 'Wallet connected',
+          title: `${walletName} connected`,
           description: `Connected to ${connectedWallet.address?.slice(0, 6)}...${connectedWallet.address?.slice(-4)}`,
         });
       }
@@ -133,7 +145,7 @@ export function WalletContextProvider({ children }: { children: React.ReactNode 
       console.error('Error connecting wallet:', error);
       toast({
         title: 'Connection failed',
-        description: error instanceof Error ? error.message : 'Could not connect to MetaMask',
+        description: error instanceof Error ? error.message : 'Could not connect to wallet',
         variant: 'destructive',
       });
       throw error;
@@ -150,10 +162,13 @@ export function WalletContextProvider({ children }: { children: React.ReactNode 
         signer: null,
         address: null,
         chainId: null,
-        balance: null,
+        btcBalance: null,
+        ethBalance: null,
+        solBalance: null,
         isConnected: false,
         isConnecting: false,
         error: null,
+        walletType: null,
       });
       toast({
         title: 'Wallet disconnected',

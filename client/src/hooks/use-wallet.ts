@@ -12,18 +12,32 @@ export function useUserWallet() {
 
   // Update user balance from wallet balance
   const updateBalance = useCallback(async () => {
-    if (!wallet.balance || !user || !wallet.isConnected) return;
+    if (!user || !wallet.isConnected) return;
     
     try {
       setIsUpdatingBalance(true);
-      const btcBalance = parseFloat(wallet.balance);
       
-      // Only update if the balance is different
-      if (btcBalance !== user.btcBalance) {
-        await apiRequest('PUT', '/api/user/balance', { balance: btcBalance });
+      // Update balances based on wallet type
+      const balanceUpdates: any = {};
+      
+      if (wallet.btcBalance && parseFloat(wallet.btcBalance) !== user.btcBalance) {
+        balanceUpdates.btcBalance = parseFloat(wallet.btcBalance);
+      }
+      
+      if (wallet.ethBalance && parseFloat(wallet.ethBalance) !== user.ethBalance) {
+        balanceUpdates.ethBalance = parseFloat(wallet.ethBalance);
+      }
+      
+      if (wallet.solBalance && parseFloat(wallet.solBalance) !== user.solBalance) {
+        balanceUpdates.solBalance = parseFloat(wallet.solBalance);
+      }
+      
+      // Only update if there are changes
+      if (Object.keys(balanceUpdates).length > 0) {
+        await apiRequest('PUT', '/api/user/balance', balanceUpdates);
         toast({
           title: 'Balance updated',
-          description: `Your balance has been updated to ${btcBalance.toFixed(8)} BTC`,
+          description: `Your wallet balances have been synchronized`,
         });
       }
     } catch (error) {
@@ -36,31 +50,31 @@ export function useUserWallet() {
     } finally {
       setIsUpdatingBalance(false);
     }
-  }, [wallet.balance, wallet.isConnected, user, toast]);
+  }, [wallet, user, toast]);
 
   // Trigger balance update when wallet balance changes
   useEffect(() => {
-    if (wallet.balance && user && wallet.isConnected) {
+    if (wallet.isConnected && user) {
       updateBalance();
     }
-  }, [wallet.balance, user, wallet.isConnected, updateBalance]);
+  }, [wallet.btcBalance, wallet.ethBalance, wallet.solBalance, user, wallet.isConnected, updateBalance]);
 
   // Deposit funds
-  const depositFunds = useCallback(async (amount: number) => {
+  const depositFunds = useCallback(async (amount: number, currency: 'BTC' | 'ETH' | 'SOL' = 'BTC') => {
     if (!wallet.isConnected || !user) {
       toast({
         title: 'Wallet not connected',
         description: 'Please connect your wallet first',
         variant: 'destructive',
       });
-      return;
+      return false;
     }
 
     try {
-      await apiRequest('POST', '/api/transactions/deposit', { amount });
+      await apiRequest('POST', '/api/transactions/deposit', { amount, currency });
       toast({
         title: 'Deposit successful',
-        description: `You have successfully deposited ${amount} BTC`,
+        description: `You have successfully deposited ${amount} ${currency}`,
       });
       return true;
     } catch (error) {

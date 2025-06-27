@@ -1,12 +1,35 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { Currency } from "@shared/schema";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Currency formatting functions
+export function formatCurrency(amount: number, currency: Currency): string {
+  switch (currency) {
+    case 'BTC':
+      return `${amount.toFixed(8)} BTC`;
+    case 'ETH':
+      return `${amount.toFixed(6)} ETH`;
+    case 'SOL':
+      return `${amount.toFixed(4)} SOL`;
+    default:
+      return `${amount.toFixed(4)} ${currency}`;
+  }
+}
+
 export function formatBTC(amount: number): string {
-  return `${amount.toFixed(2)} BTC`;
+  return formatCurrency(amount, 'BTC');
+}
+
+export function formatETH(amount: number): string {
+  return formatCurrency(amount, 'ETH');
+}
+
+export function formatSOL(amount: number): string {
+  return formatCurrency(amount, 'SOL');
 }
 
 export function formatUSD(amount: number): string {
@@ -14,6 +37,49 @@ export function formatUSD(amount: number): string {
     style: 'currency',
     currency: 'USD',
   }).format(amount);
+}
+
+export function getCurrencyIcon(currency: Currency): string {
+  switch (currency) {
+    case 'BTC':
+      return 'ri-bit-coin-line';
+    case 'ETH':
+      return 'ri-ethereum-line';
+    case 'SOL':
+      return 'ri-sun-line'; // Using sun icon for Solana
+    default:
+      return 'ri-coin-line';
+  }
+}
+
+export function getCurrencyColor(currency: Currency): string {
+  switch (currency) {
+    case 'BTC':
+      return 'text-orange-500';
+    case 'ETH':
+      return 'text-blue-500';
+    case 'SOL':
+      return 'text-purple-500';
+    default:
+      return 'text-gray-500';
+  }
+}
+
+export function getCurrencyUSDRate(currency: Currency): number {
+  switch (currency) {
+    case 'BTC':
+      return 35000;
+    case 'ETH':
+      return 2000;
+    case 'SOL':
+      return 100;
+    default:
+      return 1;
+  }
+}
+
+export function convertToUSD(amount: number, currency: Currency): number {
+  return amount * getCurrencyUSDRate(currency);
 }
 
 export function shortenWalletAddress(address: string | undefined): string {

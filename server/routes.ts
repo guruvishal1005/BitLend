@@ -78,6 +78,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           password: crypto.randomBytes(16).toString("hex"),
           walletAddress: data.walletAddress,
           btcBalance: 0,
+          ethBalance: 0,
+          solBalance: 0,
           avatarInitials: initials,
           rating: 0,
         });
@@ -149,13 +151,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/user/balance", isAuthenticated, async (req, res) => {
     try {
-      const { balance } = req.body;
+      const balances = req.body;
       
-      if (typeof balance !== "number" || balance < 0) {
-        return res.status(400).json({ message: "Invalid balance" });
+      // Validate balance updates
+      const validBalances: any = {};
+      if (typeof balances.btcBalance === "number" && balances.btcBalance >= 0) {
+        validBalances.btcBalance = balances.btcBalance;
+      }
+      if (typeof balances.ethBalance === "number" && balances.ethBalance >= 0) {
+        validBalances.ethBalance = balances.ethBalance;
+      }
+      if (typeof balances.solBalance === "number" && balances.solBalance >= 0) {
+        validBalances.solBalance = balances.solBalance;
       }
       
-      const updatedUser = await storage.updateUserBalance(req.session.userId as number, balance);
+      if (Object.keys(validBalances).length === 0) {
+        return res.status(400).json({ message: "No valid balance updates provided" });
+      }
+      
+      const updatedUser = await storage.updateUserBalance(req.session.userId as number, validBalances);
       
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
@@ -204,6 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         borrowerId: req.session.userId as number,
         lenderId: undefined,
         amount: data.amount,
+        currency: data.currency,
         interest: data.interest,
         durationMonths: data.durationMonths,
         status: "pending",
@@ -228,6 +243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         borrowerId: undefined,
         lenderId: req.session.userId as number,
         amount: data.amount,
+        currency: data.currency,
         interest: data.interest,
         durationMonths: data.durationMonths,
         status: "pending",
@@ -280,15 +296,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
+          // Get USD rate based on currency
+          const usdRates = { BTC: 35000, ETH: 2000, SOL: 100 };
+          const usdValue = loan.amount * (usdRates[loan.currency as keyof typeof usdRates] || 1);
+          
           // Create transaction for loan disbursement
           await storage.createTransaction({
             userId: req.session.userId as number,
             loanId,
             amount: loan.amount,
+            currency: loan.currency,
             type: "disbursement",
-            description: "Loan Disbursed",
+            description: `${loan.currency} Loan Disbursed`,
             txHash: `tx_${Math.random().toString(36).substring(2)}`,
-            usdValue: loan.amount * 35000, // Assuming $35k per BTC for simplicity
+            usdValue,
           });
           
           return res.status(200).json(updatedLoan);
@@ -318,15 +339,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
+          // Get USD rate based on currency
+          const usdRates = { BTC: 35000, ETH: 2000, SOL: 100 };
+          const usdValue = loan.amount * (usdRates[loan.currency as keyof typeof usdRates] || 1);
+          
           // Create transaction for loan disbursement
           await storage.createTransaction({
             userId: loan.lenderId as number,
             loanId,
             amount: loan.amount,
+            currency: loan.currency,
             type: "disbursement",
-            description: "Loan Disbursed",
+            description: `${loan.currency} Loan Disbursed`,
             txHash: `tx_${Math.random().toString(36).substring(2)}`,
-            usdValue: loan.amount * 35000, // Assuming $35k per BTC for simplicity
+            usdValue,
           });
           
           return res.status(200).json(updatedLoan);
@@ -342,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/loans/:id/repay", isAuthenticated, async (req, res) => {
     try {
       const loanId = parseInt(req.params.id);
-      const { amount } = req.body;
+      const { amount, currency } = req.body;
       
       if (typeof amount !== "number" || amount <= 0) {
         return res.status(400).json({ message: "Invalid amount" });
@@ -362,15 +388,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You are not the borrower of this loan" });
       }
       
+      // Get USD rate based on currency
+      const usdRates = { BTC: 35000, ETH: 2000, SOL: 100 };
+      const repaymentCurrency = currency || loan.currency;
+      const usdValue = amount * (usdRates[repaymentCurrency as keyof typeof usdRates] || 1);
+      
       // Create transaction for loan repayment
       const transaction = await storage.createTransaction({
         userId: req.session.userId as number,
         loanId,
         amount,
+        currency: repaymentCurrency,
         type: "repayment",
-        description: "Loan Repayment",
+        description: `${repaymentCurrency} Loan Repayment`,
         txHash: `tx_${Math.random().toString(36).substring(2)}`,
-        usdValue: amount * 35000, // Assuming $35k per BTC for simplicity
+        usdValue,
       });
       
       // Update lender stats for interest earned
@@ -401,7 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/transactions/deposit", isAuthenticated, async (req, res) => {
     try {
-      const { amount } = req.body;
+      const { amount, currency = "BTC" } = req.body;
       
       if (typeof amount !== "number" || amount <= 0) {
         return res.status(400).json({ message: "Invalid amount" });
@@ -414,18 +446,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      // Update user balance
-      const updatedUser = await storage.updateUserBalance(user.id, user.btcBalance + amount);
+      // Update user balance based on currency
+      const balanceUpdate: any = {};
+      switch (currency) {
+        case "BTC":
+          balanceUpdate.btcBalance = user.btcBalance + amount;
+          break;
+        case "ETH":
+          balanceUpdate.ethBalance = user.ethBalance + amount;
+          break;
+        case "SOL":
+          balanceUpdate.solBalance = user.solBalance + amount;
+          break;
+        default:
+          return res.status(400).json({ message: "Unsupported currency" });
+      }
+      
+      const updatedUser = await storage.updateUserBalance(user.id, balanceUpdate);
+      
+      // Get USD rate based on currency
+      const usdRates = { BTC: 35000, ETH: 2000, SOL: 100 };
+      const usdValue = amount * (usdRates[currency as keyof typeof usdRates] || 1);
       
       // Create transaction
       const transaction = await storage.createTransaction({
         userId: req.session.userId as number,
         loanId: undefined,
         amount,
+        currency,
         type: "deposit",
-        description: "Deposit",
+        description: `${currency} Deposit`,
         txHash: `tx_${Math.random().toString(36).substring(2)}`,
-        usdValue: amount * 35000, // Assuming $35k per BTC for simplicity
+        usdValue,
       });
       
       return res.status(201).json(transaction);

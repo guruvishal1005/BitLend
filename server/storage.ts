@@ -6,7 +6,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByWalletAddress(walletAddress: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  updateUserBalance(id: number, balance: number): Promise<User | undefined>;
+  updateUserBalance(id: number, balances: Partial<{btcBalance: number, ethBalance: number, solBalance: number}>): Promise<User | undefined>;
   
   // Loan operations
   getLoan(id: number): Promise<Loan | undefined>;
@@ -61,6 +61,8 @@ export class MemStorage implements IStorage {
       password: "password123",
       walletAddress: "0x71C...4E92",
       btcBalance: 0.45,
+      ethBalance: 2.5,
+      solBalance: 15.0,
       avatarInitials: "JD",
       rating: 4.8,
     };
@@ -76,11 +78,12 @@ export class MemStorage implements IStorage {
       interestEarned: 0.12,
     });
     
-    // Create some sample loans
+    // Create some sample loans with different currencies
     const loan1: InsertLoan = {
       borrowerId: user.id,
       lenderId: undefined,
       amount: 0.5,
+      currency: "BTC",
       interest: 6.5,
       durationMonths: 3,
       status: "active",
@@ -91,7 +94,8 @@ export class MemStorage implements IStorage {
     const loan2: InsertLoan = {
       borrowerId: undefined,
       lenderId: user.id,
-      amount: 0.75,
+      amount: 2.0,
+      currency: "ETH",
       interest: 5.2,
       durationMonths: 6,
       status: "active",
@@ -102,7 +106,8 @@ export class MemStorage implements IStorage {
     const loan3: InsertLoan = {
       borrowerId: undefined,
       lenderId: user.id,
-      amount: 1.2,
+      amount: 50.0,
+      currency: "SOL",
       interest: 4.8,
       durationMonths: 12,
       status: "pending",
@@ -115,6 +120,7 @@ export class MemStorage implements IStorage {
       borrowerId: 2,
       lenderId: undefined,
       amount: 0.35,
+      currency: "BTC",
       interest: 7.2,
       durationMonths: 4,
       status: "pending",
@@ -125,7 +131,8 @@ export class MemStorage implements IStorage {
     const loan5: InsertLoan = {
       borrowerId: 3,
       lenderId: undefined,
-      amount: 0.65,
+      amount: 1.5,
+      currency: "ETH",
       interest: 6.5,
       durationMonths: 6,
       status: "pending",
@@ -136,7 +143,8 @@ export class MemStorage implements IStorage {
     const loan6: InsertLoan = {
       borrowerId: undefined,
       lenderId: 4,
-      amount: 1.0,
+      amount: 25.0,
+      currency: "SOL",
       interest: 5.0,
       durationMonths: 12,
       status: "pending",
@@ -147,7 +155,8 @@ export class MemStorage implements IStorage {
     const loan7: InsertLoan = {
       borrowerId: undefined,
       lenderId: 5,
-      amount: 0.5,
+      amount: 0.8,
+      currency: "ETH",
       interest: 4.8,
       durationMonths: 3,
       status: "pending",
@@ -163,35 +172,38 @@ export class MemStorage implements IStorage {
     this.createLoan(loan6);
     this.createLoan(loan7);
     
-    // Create some sample transactions
+    // Create some sample transactions with different currencies
     const transaction1: InsertTransaction = {
       userId: user.id,
       loanId: 1,
       amount: 0.12,
+      currency: "BTC",
       type: "repayment",
-      description: "Loan Repayment",
+      description: "BTC Loan Repayment",
       txHash: "0x123",
-      usdValue: 4245.00,
+      usdValue: 4200.00,
     };
     
     const transaction2: InsertTransaction = {
       userId: user.id,
       loanId: 2,
-      amount: 0.75,
+      amount: 2.0,
+      currency: "ETH",
       type: "disbursement",
-      description: "Loan Disbursed",
+      description: "ETH Loan Disbursed",
       txHash: "0x456",
-      usdValue: 26531.25,
+      usdValue: 4000.00,
     };
     
     const transaction3: InsertTransaction = {
       userId: user.id,
       loanId: undefined,
-      amount: 1.50,
+      amount: 10.0,
+      currency: "SOL",
       type: "deposit",
-      description: "Deposit",
+      description: "SOL Deposit",
       txHash: "0x789",
-      usdValue: 53062.50,
+      usdValue: 1000.00,
     };
     
     this.createTransaction(transaction1);
@@ -227,11 +239,11 @@ export class MemStorage implements IStorage {
     return user;
   }
 
-  async updateUserBalance(id: number, balance: number): Promise<User | undefined> {
+  async updateUserBalance(id: number, balances: Partial<{btcBalance: number, ethBalance: number, solBalance: number}>): Promise<User | undefined> {
     const user = await this.getUser(id);
     if (!user) return undefined;
     
-    const updatedUser = { ...user, btcBalance: balance };
+    const updatedUser = { ...user, ...balances };
     this.users.set(id, updatedUser);
     return updatedUser;
   }

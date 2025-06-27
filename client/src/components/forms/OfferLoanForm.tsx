@@ -5,19 +5,23 @@ import { z } from 'zod';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { calculateRepaymentAmount, formatBTC } from '@/lib/utils';
+import { calculateRepaymentAmount, formatCurrency, convertToUSD, formatUSD } from '@/lib/utils';
+import { CurrencyIcon } from '@/components/ui/currency-icon';
+import { Currency } from '@shared/schema';
 
 const formSchema = z.object({
   amount: z.number().min(0.01, {
-    message: "Amount must be at least 0.01 BTC",
-  }).max(10, {
-    message: "Amount cannot exceed 10 BTC",
+    message: "Amount must be at least 0.01",
+  }).max(100, {
+    message: "Amount cannot exceed 100",
   }),
+  currency: z.enum(['BTC', 'ETH', 'SOL']).default('BTC'),
   interest: z.number().min(1, {
     message: "Interest rate must be at least 1%",
   }).max(15, {
@@ -44,6 +48,7 @@ export function OfferLoanForm({ isOpen, onClose, onSuccess }: OfferLoanFormProps
     resolver: zodResolver(formSchema),
     defaultValues: {
       amount: 0.5,
+      currency: 'BTC',
       interest: 4,
       durationMonths: 6,
       hasCollateral: true,
@@ -51,6 +56,7 @@ export function OfferLoanForm({ isOpen, onClose, onSuccess }: OfferLoanFormProps
   });
 
   const watchAmount = form.watch('amount');
+  const watchCurrency = form.watch('currency');
   const watchInterest = form.watch('interest');
   const watchDuration = form.watch('durationMonths');
 
@@ -61,6 +67,7 @@ export function OfferLoanForm({ isOpen, onClose, onSuccess }: OfferLoanFormProps
   );
 
   const profitAmount = expectedReturn - watchAmount;
+  const usdValue = convertToUSD(watchAmount, watchCurrency as Currency);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
@@ -87,51 +94,94 @@ export function OfferLoanForm({ isOpen, onClose, onSuccess }: OfferLoanFormProps
         <DialogHeader>
           <DialogTitle>Offer a Loan</DialogTitle>
           <DialogDescription>
-            Create a loan offer to lend your Bitcoin to borrowers.
+            Create a loan offer to lend your cryptocurrency to borrowers.
           </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Loan Amount (BTC)</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center space-x-4">
-                      <Slider
-                        min={0.01}
-                        max={10}
-                        step={0.01}
-                        value={[field.value]}
-                        onValueChange={(value) => field.onChange(value[0])}
-                        className="flex-1"
-                      />
-                      <Input
-                        type="number"
-                        className="w-20"
-                        step={0.01}
-                        min={0.01}
-                        max={10}
-                        {...field}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          if (!isNaN(value)) {
-                            field.onChange(value);
-                          }
-                        }}
-                      />
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    Amount of Bitcoin you want to lend
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Loan Amount</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center space-x-4">
+                        <Slider
+                          min={0.01}
+                          max={100}
+                          step={0.01}
+                          value={[field.value]}
+                          onValueChange={(value) => field.onChange(value[0])}
+                          className="flex-1"
+                        />
+                        <Input
+                          type="number"
+                          className="w-24"
+                          step={0.01}
+                          min={0.01}
+                          max={100}
+                          {...field}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value)) {
+                              field.onChange(value);
+                            }
+                          }}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      Amount you want to lend
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="BTC">
+                          <div className="flex items-center">
+                            <CurrencyIcon currency="BTC" className="mr-2" size={16} />
+                            Bitcoin (BTC)
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="ETH">
+                          <div className="flex items-center">
+                            <CurrencyIcon currency="ETH" className="mr-2" size={16} />
+                            Ethereum (ETH)
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="SOL">
+                          <div className="flex items-center">
+                            <CurrencyIcon currency="SOL" className="mr-2" size={16} />
+                            Solana (SOL)
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Cryptocurrency to lend
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
             <FormField
               control={form.control}
@@ -235,12 +285,23 @@ export function OfferLoanForm({ isOpen, onClose, onSuccess }: OfferLoanFormProps
             
             <div className="p-4 border rounded-md bg-muted">
               <div className="flex justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Loan Amount</span>
+                <span className="font-medium flex items-center">
+                  <CurrencyIcon currency={watchCurrency as Currency} className="mr-1" size={16} />
+                  {formatCurrency(watchAmount, watchCurrency as Currency)}
+                </span>
+              </div>
+              <div className="flex justify-between mb-2">
+                <span className="text-sm text-muted-foreground">USD Value</span>
+                <span className="font-medium">{formatUSD(usdValue)}</span>
+              </div>
+              <div className="flex justify-between mb-2">
                 <span className="text-sm text-muted-foreground">Expected Return</span>
-                <span className="font-medium">{formatBTC(expectedReturn)}</span>
+                <span className="font-medium">{formatCurrency(expectedReturn, watchCurrency as Currency)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Profit</span>
-                <span className="font-medium text-success">{formatBTC(profitAmount)}</span>
+                <span className="font-medium text-success">{formatCurrency(profitAmount, watchCurrency as Currency)}</span>
               </div>
             </div>
             
