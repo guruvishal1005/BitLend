@@ -48,48 +48,58 @@
 }
 
 .dark {
-  --background: 20 14.3% 4.1%;
-  --foreground: 60 9.1% 97.8%;
-  --muted: 12 6.5% 15.1%;
-  --muted-foreground: 24 5.4% 63.9%;
-  --popover: 20 14.3% 4.1%;
-  --popover-foreground: 60 9.1% 97.8%;
-  --card: 20 14.3% 4.1%;
-  --card-foreground: 60 9.1% 97.8%;
-  --border: 12 6.5% 15.1%;
-  --input: 12 6.5% 15.1%;
-  --primary: 28 100% 50%;  /* Slightly darker Bitcoin orange */
-  --primary-foreground: 60 9.1% 97.8%;
-  --secondary: 12 6.5% 15.1%;
-  --secondary-foreground: 60 9.1% 97.8%;
-  --accent: 199 95% 40%;   /* Darker blue accent */
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 72.2% 50.6%;
-  --destructive-foreground: 60 9.1% 97.8%;
-  --ring: 28 100% 50%;
+  /* Dark Gray Minimalistic Theme with Purple Accents */
+  --background: 220 10% 10%;        /* Cool, very dark blue/gray */
+  --foreground: 220 10% 85%;        /* Light gray/off-white for text */
+
+  --muted: 220 10% 20%;             /* Slightly lighter gray for muted elements */
+  --muted-foreground: 220 10% 55%;  /* Softer text on muted backgrounds */
+
+  --popover: 220 10% 13%;           /* Darker popovers/cards */
+  --popover-foreground: 220 10% 85%;
+
+  --card: 220 10% 13%;              /* Darker cards */
+  --card-foreground: 220 10% 85%;
+
+  --border: 220 10% 20%;            /* Subtle borders */
+  --input: 220 10% 20%;             /* Input background */
+
+  --primary: 260 85% 75%;           /* Light appealing purple */
+  --primary-foreground: 260 60% 15%; /* Dark purple for text on primary buttons */
+
+  --secondary: 220 10% 25%;         /* A slightly lighter gray for secondary elements */
+  --secondary-foreground: 220 10% 85%;/* Text on secondary elements */
+
+  --accent: 260 70% 65%;            /* A slightly desaturated/darker purple for accents */
+  --accent-foreground: 260 60% 15%; /* Text on accent elements */
+
+  --destructive: 0 60% 50%;         /* Adjusted destructive red for dark theme */
+  --destructive-foreground: 0 0% 100%; /* White text on destructive */
+
+  --ring: 260 85% 75%;              /* Ring color to match new primary purple */
   --radius: 0.5rem;
   
-  /* Chart colors */
-  --chart-1: 28 100% 50%;  /* Bitcoin orange */
-  --chart-2: 199 95% 40%;  /* Blue accent */
-  --chart-3: 142 77% 40%;  /* Success */
-  --chart-4: 42 100% 50%;  /* Warning */
-  --chart-5: 0 72% 50%;    /* Destructive */
+  /* Chart colors - adjust to fit new theme, maybe more muted or purple-based */
+  --chart-1: 260 85% 75%;  /* Primary Purple */
+  --chart-2: 260 70% 65%;  /* Accent Purple */
+  --chart-3: 220 20% 60%;  /* Muted Blue/Gray */
+  --chart-4: 280 40% 60%;  /* Muted Magenta/Purple */
+  --chart-5: 220 10% 45%;  /* Darker Muted Blue/Gray */
 
-  /* Status colors */
-  --success: 142 77% 40%;  /* Green */
-  --warning: 42 100% 50%;  /* Yellow */
-  --danger: 0 72% 50%;     /* Red */
+  /* Status colors - can remain functional or be themed */
+  --success: 140 60% 50%;  /* Adjusted Green */
+  --warning: 40 80% 60%;   /* Adjusted Yellow/Orange */
+  --danger: 0 60% 50%;     /* Same as destructive */
 
   /* Sidebar colors */
-  --sidebar-background: 20 14.3% 4.1%;
-  --sidebar-foreground: 60 9.1% 97.8%;
-  --sidebar-primary: 28 100% 50%;
-  --sidebar-primary-foreground: 60 9.1% 97.8%;
-  --sidebar-accent: 199 95% 40%;
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-border: 12 6.5% 15.1%;
-  --sidebar-ring: 28 100% 50%;
+  --sidebar-background: 220 10% 8%;    /* Slightly darker than main background */
+  --sidebar-foreground: 220 10% 85%;   /* Consistent foreground */
+  --sidebar-primary: 260 85% 75%;      /* Purple for active/primary sidebar items */
+  --sidebar-primary-foreground: 260 60% 15%;
+  --sidebar-accent: 260 70% 65%;       /* Muted purple for hover/accent in sidebar */
+  --sidebar-accent-foreground: 260 60% 15%;
+  --sidebar-border: 220 10% 15%;      /* Border for sidebar elements */
+  --sidebar-ring: 260 85% 75%;        /* Ring for focus in sidebar */
 }
 
 @layer base {
