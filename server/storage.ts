@@ -5,7 +5,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByWalletAddress(walletAddress: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: InsertUser): User; // Synchronous
   updateUserBalance(id: number, balances: Partial<{btcBalance: number, ethBalance: number, solBalance: number}>): Promise<User | undefined>;
   
   // Loan operations
@@ -13,17 +13,17 @@ export interface IStorage {
   getUserLoans(userId: number): Promise<Loan[]>;
   getActiveLoans(userId: number): Promise<Loan[]>;
   getMarketplaceLoans(): Promise<Loan[]>;
-  createLoan(loan: InsertLoan): Promise<Loan>;
+  createLoan(loan: InsertLoan): Loan; // Synchronous
   updateLoanStatus(id: number, status: string): Promise<Loan | undefined>;
   
   // Transaction operations
   getTransaction(id: number): Promise<Transaction | undefined>;
   getUserTransactions(userId: number): Promise<Transaction[]>;
-  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  createTransaction(transaction: InsertTransaction): Transaction; // Synchronous
   
   // Stats operations
   getUserStats(userId: number): Promise<Stats | undefined>;
-  createStats(stats: InsertStats): Promise<Stats>;
+  createStats(stats: InsertStats): Stats; // Synchronous
   updateStats(userId: number, updatedStats: Partial<InsertStats>): Promise<Stats | undefined>;
 }
 
@@ -228,12 +228,19 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  createUser(insertUser: InsertUser): User { // Synchronous
     const id = this.currentUserId++;
-    const now = new Date();
-    const user: User = { 
-      ...insertUser, 
+    const user: User = {
       id,
+      username: insertUser.username,
+      email: insertUser.email,
+      password: insertUser.password,
+      walletAddress: insertUser.walletAddress === undefined ? null : insertUser.walletAddress,
+      btcBalance: insertUser.btcBalance === undefined ? null : insertUser.btcBalance,
+      ethBalance: insertUser.ethBalance === undefined ? null : insertUser.ethBalance,
+      solBalance: insertUser.solBalance === undefined ? null : insertUser.solBalance,
+      avatarInitials: insertUser.avatarInitials === undefined ? null : insertUser.avatarInitials,
+      rating: insertUser.rating === undefined ? null : insertUser.rating,
     };
     this.users.set(id, user);
     return user;
@@ -273,12 +280,20 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async createLoan(insertLoan: InsertLoan): Promise<Loan> {
+  createLoan(insertLoan: InsertLoan): Loan { // Synchronous
     const id = this.currentLoanId++;
     const now = new Date();
     const loan: Loan = {
-      ...insertLoan,
       id,
+      lenderId: insertLoan.lenderId === undefined ? null : insertLoan.lenderId,
+      borrowerId: insertLoan.borrowerId === undefined ? null : insertLoan.borrowerId,
+      amount: insertLoan.amount,
+      currency: insertLoan.currency || "BTC", // Default from schema
+      interest: insertLoan.interest,
+      durationMonths: insertLoan.durationMonths,
+      status: insertLoan.status || "pending", // Default from schema
+      type: insertLoan.type,
+      hasCollateral: insertLoan.hasCollateral === undefined ? false : insertLoan.hasCollateral, // Default from schema
       createdAt: now,
       updatedAt: now,
     };
@@ -304,16 +319,26 @@ export class MemStorage implements IStorage {
     return Array.from(this.transactions.values()).filter(
       (transaction) => transaction.userId === userId,
     ).sort((a, b) => {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      // Handle null createdAt dates for sorting
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0; // Treat null as earliest
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0; // Treat null as earliest
+      return timeB - timeA; // Sort descending (newest first)
     });
   }
 
-  async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
+  createTransaction(insertTransaction: InsertTransaction): Transaction { // Synchronous
     const id = this.currentTransactionId++;
     const now = new Date();
     const transaction: Transaction = {
-      ...insertTransaction,
       id,
+      userId: insertTransaction.userId,
+      loanId: insertTransaction.loanId === undefined ? null : insertTransaction.loanId,
+      amount: insertTransaction.amount,
+      currency: insertTransaction.currency || "BTC", // Default from schema
+      type: insertTransaction.type,
+      description: insertTransaction.description,
+      txHash: insertTransaction.txHash === undefined ? null : insertTransaction.txHash,
+      usdValue: insertTransaction.usdValue === undefined ? null : insertTransaction.usdValue,
       createdAt: now,
     };
     this.transactions.set(id, transaction);
@@ -327,11 +352,15 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async createStats(insertStats: InsertStats): Promise<Stats> {
+  createStats(insertStats: InsertStats): Stats { // Synchronous
     const id = this.currentStatsId++;
     const stats: Stats = {
-      ...insertStats,
       id,
+      userId: insertStats.userId,
+      totalBorrowed: insertStats.totalBorrowed === undefined ? null : insertStats.totalBorrowed,
+      totalLent: insertStats.totalLent === undefined ? null : insertStats.totalLent,
+      activeLoans: insertStats.activeLoans === undefined ? null : insertStats.activeLoans,
+      interestEarned: insertStats.interestEarned === undefined ? null : insertStats.interestEarned,
     };
     this.stats.set(id, stats);
     return stats;

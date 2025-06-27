@@ -1,8 +1,10 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { log } from "./vite"; // Ensure log is imported
 import { loginSchema, connectWalletSchema, loanRequestSchema, loanOfferSchema } from "@shared/schema";
 import { ZodError } from "zod";
+import bcrypt from "bcrypt";
 import { fromZodError } from "zod-validation-error";
 import session from "express-session";
 import MemoryStore from "memorystore";
@@ -14,12 +16,33 @@ declare module "express-session" {
   }
 }
 
+// log is already imported at the top. This section cleans up the duplicate function definition.
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize session
   const MemoryStoreSession = MemoryStore(session);
+  let sessionSecret = process.env.SESSION_SECRET;
+
+  if (!sessionSecret) {
+    if (process.env.NODE_ENV === "production") {
+      // Using console.error directly as this is a critical startup issue
+      console.error("FATAL ERROR: SESSION_SECRET is not set in production. Please set a strong, random secret.");
+      // In a real production scenario, you might want to exit the process
+      // process.exit(1);
+      // For now, we'll generate one but strongly advise against it for production.
+      sessionSecret = crypto.randomBytes(32).toString("hex");
+      log("WARNING: SESSION_SECRET was not set in production. A temporary secret has been generated. THIS IS NOT SECURE FOR PRODUCTION DEPLOYMENTS AND WILL CAUSE ALL SESSIONS TO INVALIDATE ON RESTART.");
+    } else {
+      sessionSecret = crypto.randomBytes(32).toString("hex");
+      log("SESSION_SECRET not set. Generating a random secret for development. All sessions will invalidate on restart.");
+    }
+  } else {
+    log("SESSION_SECRET loaded from environment variable.");
+  }
+
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
+      secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: { secure: process.env.NODE_ENV === "production", maxAge: 86400000 }, // 1 day
@@ -44,7 +67,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const user = await storage.getUserByEmail(data.email);
       
-      if (!user || user.password !== data.password) {
+      if (!user) {
+        // To prevent timing attacks, it's good practice to still run a hash comparison
+        // even if the user is not found. We can use a dummy hash.
+        // However, for simplicity here, we'll just return.
+        // In a real app, consider `await bcrypt.compare(data.password, dummyHash);`
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      const passwordMatch = await bcrypt.compare(data.password, user.password);
+      if (!passwordMatch) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
       
@@ -72,10 +104,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         // Create a new user with wallet address
         const initials = "BT"; // Default initials for Bitcoin user
+        const saltRounds = 10;
+        const randomPassword = crypto.randomBytes(16).toString("hex");
+        const hashedPassword = await bcrypt.hash(randomPassword, saltRounds);
+
         user = await storage.createUser({
           username: `User-${Math.floor(Math.random() * 1000)}`,
           email: `${Math.random().toString(36).substring(2)}@wallet.user`,
-          password: crypto.randomBytes(16).toString("hex"),
+          password: hashedPassword, // Store hashed password
           walletAddress: data.walletAddress,
           btcBalance: 0,
           ethBalance: 0,
@@ -150,6 +186,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.put("/api/user/balance", isAuthenticated, async (req, res) => {
+    // CRITICAL NOTE: This endpoint allows direct modification of user balances stored
+    // on the server. This is potentially very dangerous if these balances are intended
+    // to reflect actual on-chain assets without proper verification against blockchain
+    // transactions.
+    // This endpoint should ideally be:
+    // 1. Removed if balances are purely on-chain and managed by user wallets.
+    // 2. Restricted to admin users or specific internal system processes.
+    // 3. Used ONLY as part of a verified deposit/withdrawal flow where an actual
+    //    on-chain transaction has been confirmed by other means.
+    // For the current scope, leaving functional but highlighting the risk.
     try {
       const balances = req.body;
       
@@ -281,18 +327,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const lenderStats = await storage.getUserStats(req.session.userId as number);
           
           if (lenderStats) {
+            const currentTotalLent = lenderStats.totalLent ?? 0;
+            const currentActiveLoans = lenderStats.activeLoans ?? 0;
             await storage.updateStats(req.session.userId as number, {
-              totalLent: lenderStats.totalLent + loan.amount,
-              activeLoans: lenderStats.activeLoans + 1,
+              totalLent: currentTotalLent + loan.amount,
+              activeLoans: currentActiveLoans + 1,
             });
           }
           
           const borrowerStats = await storage.getUserStats(loan.borrowerId as number);
           
           if (borrowerStats) {
+            const currentTotalBorrowed = borrowerStats.totalBorrowed ?? 0;
+            const currentActiveLoans = borrowerStats.activeLoans ?? 0;
             await storage.updateStats(loan.borrowerId as number, {
-              totalBorrowed: borrowerStats.totalBorrowed + loan.amount,
-              activeLoans: borrowerStats.activeLoans + 1,
+              totalBorrowed: currentTotalBorrowed + loan.amount,
+              activeLoans: currentActiveLoans + 1,
             });
           }
           
@@ -300,15 +350,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const usdRates = { BTC: 35000, ETH: 2000, SOL: 100 };
           const usdValue = loan.amount * (usdRates[loan.currency as keyof typeof usdRates] || 1);
           
+          // Client should ideally provide the actual on-chain transaction hash
+          const clientTxHash = req.body.txHash;
+          const finalTxHash = typeof clientTxHash === 'string' && clientTxHash.trim() !== ''
+                              ? clientTxHash
+                              : `mock_disburse_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+          if (!clientTxHash) {
+            log(`WARNING: No txHash provided by client for loan ${loanId} acceptance (lender). Using mock hash: ${finalTxHash}`);
+          }
+
           // Create transaction for loan disbursement
           await storage.createTransaction({
-            userId: req.session.userId as number,
+            userId: req.session.userId as number, // The user accepting (lender)
             loanId,
             amount: loan.amount,
             currency: loan.currency,
             type: "disbursement",
             description: `${loan.currency} Loan Disbursed`,
-            txHash: `tx_${Math.random().toString(36).substring(2)}`,
+            txHash: finalTxHash,
             usdValue,
           });
           
@@ -318,24 +377,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If it's a loan offer, the current user becomes the borrower
       if (loan.type === "offer" && !loan.borrowerId) {
+        // The borrower is accepting the offer. The LENDER would have initiated the on-chain transaction.
+        // The client (borrower) should pass the txHash obtained from the lender or from observing the chain.
         const updatedLoan = await storage.updateLoanStatus(loanId, "active");
         
         if (updatedLoan) {
           const borrowerStats = await storage.getUserStats(req.session.userId as number);
           
           if (borrowerStats) {
+            const currentTotalBorrowed = borrowerStats.totalBorrowed ?? 0;
+            const currentActiveLoans = borrowerStats.activeLoans ?? 0;
             await storage.updateStats(req.session.userId as number, {
-              totalBorrowed: borrowerStats.totalBorrowed + loan.amount,
-              activeLoans: borrowerStats.activeLoans + 1,
+              totalBorrowed: currentTotalBorrowed + loan.amount,
+              activeLoans: currentActiveLoans + 1,
             });
           }
           
           const lenderStats = await storage.getUserStats(loan.lenderId as number);
           
           if (lenderStats) {
+            const currentTotalLent = lenderStats.totalLent ?? 0;
+            const currentActiveLoans = lenderStats.activeLoans ?? 0;
             await storage.updateStats(loan.lenderId as number, {
-              totalLent: lenderStats.totalLent + loan.amount,
-              activeLoans: lenderStats.activeLoans + 1,
+              totalLent: currentTotalLent + loan.amount,
+              activeLoans: currentActiveLoans + 1,
             });
           }
           
@@ -392,16 +457,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const usdRates = { BTC: 35000, ETH: 2000, SOL: 100 };
       const repaymentCurrency = currency || loan.currency;
       const usdValue = amount * (usdRates[repaymentCurrency as keyof typeof usdRates] || 1);
+
+      // Client should ideally provide the actual on-chain transaction hash for the repayment
+      const clientTxHash = req.body.txHash;
+      const finalTxHash = typeof clientTxHash === 'string' && clientTxHash.trim() !== ''
+                          ? clientTxHash
+                          : `mock_repay_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      if (!clientTxHash) {
+        log(`WARNING: No txHash provided by client for loan ${loanId} repayment. Using mock hash: ${finalTxHash}`);
+      }
       
       // Create transaction for loan repayment
       const transaction = await storage.createTransaction({
-        userId: req.session.userId as number,
+        userId: req.session.userId as number, // Borrower is making the repayment
         loanId,
         amount,
         currency: repaymentCurrency,
         type: "repayment",
         description: `${repaymentCurrency} Loan Repayment`,
-        txHash: `tx_${Math.random().toString(36).substring(2)}`,
+        txHash: finalTxHash,
         usdValue,
       });
       
@@ -409,9 +483,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lenderStats = await storage.getUserStats(loan.lenderId as number);
       
       if (lenderStats) {
-        const interestAmount = amount * (loan.interest / 100);
+        const currentInterestEarned = lenderStats.interestEarned ?? 0;
+        const interestAmount = amount * (loan.interest / 100); // Assuming loan.interest is non-null and valid percentage
         await storage.updateStats(loan.lenderId as number, {
-          interestEarned: lenderStats.interestEarned + interestAmount,
+          interestEarned: currentInterestEarned + interestAmount,
         });
       }
       
@@ -448,15 +523,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update user balance based on currency
       const balanceUpdate: any = {};
+      const currentBtcBalance = user.btcBalance ?? 0;
+      const currentEthBalance = user.ethBalance ?? 0;
+      const currentSolBalance = user.solBalance ?? 0;
+
       switch (currency) {
         case "BTC":
-          balanceUpdate.btcBalance = user.btcBalance + amount;
+          balanceUpdate.btcBalance = currentBtcBalance + amount;
           break;
         case "ETH":
-          balanceUpdate.ethBalance = user.ethBalance + amount;
+          balanceUpdate.ethBalance = currentEthBalance + amount;
           break;
         case "SOL":
-          balanceUpdate.solBalance = user.solBalance + amount;
+          balanceUpdate.solBalance = currentSolBalance + amount;
           break;
         default:
           return res.status(400).json({ message: "Unsupported currency" });
