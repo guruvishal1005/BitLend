@@ -169,20 +169,45 @@ export async function getBalance(address: string, walletType: 'metamask' | 'phan
 }
 
 export async function sendTransaction(to: string, amount: string, currency: 'BTC' | 'ETH' | 'SOL', walletType: 'metamask' | 'phantom'): Promise<string> {
+  // Input Validation
+  if (parseFloat(amount) <= 0 || isNaN(parseFloat(amount))) {
+    throw new Error("Transaction amount must be a positive number.");
+  }
+
   try {
     if (walletType === 'phantom' && currency === 'SOL') {
-      // Mock Solana transaction
       if (!window.solana || !window.solana.isPhantom) {
-        throw new Error("Phantom wallet is not installed");
+        throw new Error("Phantom wallet is not installed. Please install Phantom to use Solana features.");
+      }
+      // Basic Solana address validation (length and base58 characters)
+      // A more robust solution would involve a Solana-specific library.
+      if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(to)) {
+          throw new Error("Invalid Solana address format.");
       }
       
+      console.log(`Mock Solana transaction to ${to} for ${amount} SOL`);
       // In a real implementation, you'd use @solana/web3.js here
-      const mockTxHash = `sol_${Math.random().toString(36).substring(2)}`;
+      // For example:
+      // const connection = new Connection(clusterApiUrl('devnet'));
+      // const transaction = new Transaction().add(
+      //   SystemProgram.transfer({
+      //     fromPubkey: (window.solana.publicKey as PublicKey),
+      //     toPubkey: new PublicKey(to),
+      //     lamports: parseFloat(amount) * LAMPORTS_PER_SOL,
+      //   })
+      // );
+      // const { signature } = await window.solana.signAndSendTransaction(transaction);
+      // await connection.confirmTransaction(signature);
+      // return signature;
+      const mockTxHash = `sol_mock_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       return mockTxHash;
+
     } else if (walletType === 'metamask' && currency === 'ETH') {
-      // Ethereum transaction
       if (!window.ethereum) {
-        throw new Error("MetaMask is not installed");
+        throw new Error("MetaMask is not installed. Please install MetaMask to use Ethereum features.");
+      }
+      if (!ethers.isAddress(to)) {
+        throw new Error("Invalid Ethereum address format.");
       }
       
       const provider = new ethers.BrowserProvider(window.ethereum);
@@ -190,19 +215,34 @@ export async function sendTransaction(to: string, amount: string, currency: 'BTC
       
       const ethAmountInWei = ethers.parseEther(amount);
       
+      console.log(`Sending ${ethers.formatEther(ethAmountInWei)} ETH to ${to}...`);
       const tx = await signer.sendTransaction({
         to,
         value: ethAmountInWei,
       });
       
-      await tx.wait();
+      console.log(`Transaction submitted with hash: ${tx.hash}. Waiting for confirmation...`);
+      const receipt = await tx.wait();
+      if (!receipt || receipt.status !== 1) {
+        console.error("Transaction failed or was reverted.", receipt);
+        throw new Error("Ethereum transaction failed. Check wallet for details.");
+      }
+      console.log(`Transaction confirmed in block: ${receipt.blockNumber}`);
       return tx.hash;
+
     } else {
-      throw new Error(`Unsupported transaction: ${currency} with ${walletType}`);
+      throw new Error(`Unsupported transaction: ${currency} with ${walletType}.`);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error sending transaction:", error);
-    throw error;
+    if (error.code === 4001) { // MetaMask user rejected transaction
+        throw new Error("Transaction rejected by user in wallet.");
+    }
+    if (error.message.includes("Invalid Solana address") || error.message.includes("Invalid Ethereum address")) {
+        throw error; // Re-throw validation errors directly
+    }
+    // For other errors, provide a generic message or more specific ones if identifiable
+    throw new Error(`Transaction failed: ${error.message || "An unknown error occurred."}`);
   }
 }
 

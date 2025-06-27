@@ -20,10 +20,10 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
-  const serverOptions = {
+  const serverOptions: import('vite').ServerOptions = { // Explicitly type serverOptions
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    allowedHosts: true, // 'true' is a valid literal for the union type
   };
 
   const vite = await createViteServer({
