@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { log } from "./vite"; // Ensure log is imported
 import { loginSchema, connectWalletSchema, loanRequestSchema, loanOfferSchema } from "@shared/schema";
 import { ZodError } from "zod";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { fromZodError } from "zod-validation-error";
 import session from "express-session";
 import MemoryStore from "memorystore";
